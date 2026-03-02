@@ -1,0 +1,36 @@
+diff --git a/server.js b/server.js
+--- a/server.js
++++ b/server.js
+@@
+ const {
+   listTemplatesInFolder,
+   ensurePatientFolders,
+   copyTemplateToFolder,
+   replacePlaceholdersInDoc,
++  ensureDealAgentHeader,
+   exportDocAsPdfBuffer,
+   uploadPdfToFolder,
+   driveFolderUrl,
+   driveFileUrl,
+   docsEditUrl,
+ } = require('./lib/drive_docs');
+@@
+       // 5) Replace placeholders
+       await replacePlaceholdersInDoc({ documentId: copied.id, placeholders: placeholdersBase });
++
++      // 5.5) Header obligatorio (gris): DEAL.<id> <agente@email>
++      // Se toma desde req.body.actor.email si viene (widget), o se omite si no (portal).
++      const agentEmail =
++        (req.body && req.body.actor && req.body.actor.email) ||
++        (req.body && (req.body.agent_email || req.body.agentEmail)) ||
++        '';
++      if (agentEmail) {
++        await ensureDealAgentHeader({
++          documentId: copied.id,
++          dealId,
++          agentEmail,
++        });
++      }
+
+       // 6) Export PDF + upload
+       const pdfBuffer = await exportDocAsPdfBuffer({ fileId: copied.id });

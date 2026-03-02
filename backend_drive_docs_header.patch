@@ -1,0 +1,114 @@
+diff --git a/lib/drive_docs.js b/lib/drive_docs.js
+--- a/lib/drive_docs.js
++++ b/lib/drive_docs.js
+@@
+ async function replacePlaceholdersInDoc({ documentId, placeholders }) {
+   const docs = getDocs();
+@@
+   await docs.documents.batchUpdate({
+     documentId,
+     requestBody: { requests },
+   });
+ }
++
++/**
++ * Ensure header exists and inserts a gray small text:
++ *   DEAL.<dealId> <agentEmail>
++ * This is done programmatically so templates don't need to include a header.
++ */
++async function ensureDealAgentHeader({ documentId, dealId, agentEmail }) {
++  const docs = getDocs();
++  const safeDealId = String(dealId || '').trim();
++  const safeEmail = String(agentEmail || '').trim();
++  const headerText = `DEAL.${safeDealId} ${safeEmail}\n`;
++
++  // 1) Get existing header (if any)
++  const doc = await docs.documents.get({
++    documentId,
++    fields: 'documentStyle,headers',
++  });
++
++  const headersMap = doc?.data?.headers || {};
++  let headerId =
++    doc?.data?.documentStyle?.defaultHeaderId ||
++    Object.keys(headersMap)[0] ||
++    null;
++
++  // 2) Create header if missing
++  if (!headerId) {
++    const createRes = await docs.documents.batchUpdate({
++      documentId,
++      requestBody: {
++        requests: [
++          {
++            createHeader: {
++              type: 'DEFAULT',
++              sectionBreakLocation: { index: 0 },
++            },
++          },
++        ],
++      },
++    });
++
++    headerId = createRes?.data?.replies?.[0]?.createHeader?.headerId;
++    if (!headerId) {
++      const err = new Error('No se pudo crear header (headerId vacío).');
++      err.code = 'HEADER_CREATE_FAILED';
++      throw err;
++    }
++  }
++
++  // 3) Insert text and style (gray, 9pt). Some docs reject index 0 -> fallback to 1.
++  const insertAt = async (index) => {
++    await docs.documents.batchUpdate({
++      documentId,
++      requestBody: {
++        requests: [
++          {
++            insertText: {
++              location: { segmentId: headerId, index },
++              text: headerText,
++            },
++          },
++          {
++            updateTextStyle: {
++              range: {
++                segmentId: headerId,
++                startIndex: index,
++                endIndex: index + headerText.length,
++              },
++              textStyle: {
++                fontSize: { magnitude: 9, unit: 'PT' },
++                foregroundColor: {
++                  color: { rgbColor: { red: 0.6, green: 0.6, blue: 0.6 } },
++                },
++              },
++              fields: 'fontSize,foregroundColor',
++            },
++          },
++        ],
++      },
++    });
++  };
++
++  try {
++    await insertAt(0);
++  } catch (_e) {
++    await insertAt(1);
++  }
++
++  return { headerId };
++}
+@@
+ module.exports = {
+   listTemplatesInFolder,
+   ensurePatientFolders,
+   copyTemplateToFolder,
+   replacePlaceholdersInDoc,
++  ensureDealAgentHeader,
+   exportDocAsPdfBuffer,
+   uploadPdfToFolder,
+   driveFolderUrl,
+   driveFileUrl,
+   docsEditUrl,
+ };
