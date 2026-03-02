@@ -8,7 +8,9 @@
   },
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "check:merge-markers": "sh -c \"if rg -n '<<<<<<<|=======|>>>>>>>' server.js lib public; then echo 'ERROR: merge conflict markers detected'; exit 1; fi\"",
+    "prestart": "npm run check:merge-markers"
   },
   "dependencies": {
     "express": "^4.19.2",
