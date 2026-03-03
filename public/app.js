@@ -48,6 +48,74 @@ function uniq(arr) {
   return out;
 }
 
+// -------------------------
+// Estatura (m): input guard (evita errores tipo 175 vs 1.75)
+// Acepta solo dígitos + un separador (.,) + 2 decimales
+// -------------------------
+function enforceHeightFormat(inputEl) {
+  if (!inputEl) return;
+
+  const sanitize = () => {
+    let v = inputEl.value || "";
+
+    // 1) permitir solo dígitos, punto o coma
+    v = v.replace(/[^\d.,]/g, "");
+
+    // 2) permitir solo UN separador (el primero)
+    const firstSepIndex = v.search(/[.,]/);
+    if (firstSepIndex !== -1) {
+      const sep = v[firstSepIndex];
+      const before = v.slice(0, firstSepIndex).replace(/[.,]/g, "");
+      const afterRaw = v.slice(firstSepIndex + 1).replace(/[.,]/g, "");
+      const after = afterRaw.slice(0, 2); // max 2 decimales
+      v = before + sep + after;
+    } else {
+      v = v.replace(/[.,]/g, "");
+    }
+
+    inputEl.value = v;
+  };
+
+  inputEl.addEventListener("input", sanitize);
+
+  inputEl.addEventListener("blur", () => {
+    let v = String(inputEl.value || "").trim();
+
+    // normaliza coma a punto
+    v = v.replace(",", ".");
+
+    // si viene entero corto (ej 1 o 2), completar .00
+    if (/^\d{1,2}$/.test(v)) v = v + ".00";
+
+    // si viene con 1 decimal, completar con 0 (ej 1.7 -> 1.70)
+    const m1 = v.match(/^(\d+)\.(\d)$/);
+    if (m1) v = `${m1[1]}.${m1[2]}0`;
+
+    // si termina en punto, completar 00
+    if (/^\d+\.$/.test(v)) v = v + "00";
+
+    inputEl.value = v;
+  });
+}
+
+// Estatura estricta: exige formato X.XX (o X,XX) y rango razonable en metros.
+function parseHeightMetersStrict(raw) {
+  const s = String(raw || "").trim().replace(",", ".");
+  if (!s) return null;
+
+  // Requiere 2 decimales
+  if (!/^\d+(\.\d{2})$/.test(s)) return null;
+
+  const n = Number(s);
+  if (!Number.isFinite(n)) return null;
+
+  // Rango razonable: 1.20 a 2.50 metros
+  if (n < 1.2 || n > 2.5) return null;
+
+  return Number(n.toFixed(2));
+}
+
+
 function extractEmailFromLines(lines) {
   for (const ln of lines) {
     const m = ln.match(/([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i);
@@ -1445,6 +1513,16 @@ if (!ownerId || !Number.isFinite(ownerId)) {
   body.sucursal = (document.getElementById('dealSucursal')?.value || '').trim();
   body.peso = (document.getElementById('dealPeso')?.value || '').trim();
   body.estatura = (document.getElementById('dealEstatura')?.value || '').trim();
+
+  // Validación estricta de estatura para evitar errores (ej: 175 en vez de 1.75)
+  const estaturaM = parseHeightMetersStrict(body.estatura);
+  if (estaturaM === null) {
+    setStatus(dStatus, 'Estatura inválida. Usa metros con formato X.XX (ej: 1.75 o 1,75). No uses 175.', 'error');
+    document.getElementById('dealEstatura')?.focus();
+    return;
+  }
+  body.estatura = estaturaM.toFixed(2);
+
   body.interes = (document.getElementById('dealInteres')?.value || '').trim();
   body.url_medinet = (document.getElementById('dealUrlMedinet')?.value || '').trim();
   body.cirugias_previas = (document.getElementById('dealCirugiasPrevias')?.value || '').trim();
@@ -1536,6 +1614,11 @@ async function loadPipelinesForDealForm() {
 }
 
 document.addEventListener('DOMContentLoaded', loadPipelinesForDealForm);
+
+document.addEventListener('DOMContentLoaded', () => {
+  enforceHeightFormat(document.getElementById('dealEstatura'));
+});
+
 
 
 // Manual pipeline toggle
