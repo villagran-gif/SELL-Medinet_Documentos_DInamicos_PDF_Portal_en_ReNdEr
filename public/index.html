@@ -4,12 +4,16 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Portal · Sell</title>
+
     <link rel="stylesheet" href="/style.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css" />
-      <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
+    <!-- PATCH: Links + barra de acciones -->
+    <link rel="stylesheet" href="/links_patch.css" />
+    <link rel="stylesheet" href="/portal_nav_actions.css" />
   </head>
-  <link rel="stylesheet" href="/links_patch.css" />
-<script src="/links_patch.js"></script>
+
   <body class="theme-dark">
     <main class="wrap">
       <header class="topbar">
@@ -54,9 +58,8 @@
           <label>
             RUN / RUT <span class="req">*</span>
             <input id="c_rut" placeholder='Ej: 12.345.678-K' autocomplete="off" />
-          
             <div id="c_rut_msg" class="rutmsg"></div>
-</label>
+          </label>
 
           <label>
             Nombres <span class="req">*</span>
@@ -122,7 +125,6 @@
           </div>
         </form>
 
-        
         <div id="c_rut_lookup" class="summary"></div>
 
         <section id="c_status" class="status"></section>
@@ -135,11 +137,10 @@
         <p class="muted small">/api/create-contact · soporta <span class="mono">?dry_run=1</span></p>
       </section>
 
-
       <section class="card">
         <h2>Crear DEAL / TRATO</h2>
         <p class="muted">
-          Este bloque <b>crea el DEAL/TRATO</b> en el pipeline seleccionado. 
+          Este bloque <b>crea el DEAL/TRATO</b> en el pipeline seleccionado.
           Regla: si ya existe 1 deal con el mismo RUT en el mismo pipeline, se <b>bloquea</b> y se muestran links.
         </p>
 
@@ -147,110 +148,117 @@
           <label>
             Pipeline ID (obligatorio)
             <select id="dealPipelineId"></select>
-          <div id="dealPipelineHelp" class="muted small"></div>
+            <div id="dealPipelineHelp" class="muted small"></div>
+          </label>
 
-<label>
-  Dueño (obligatorio)
-  <select id="dealOwnerId"></select>
-  <div id="dealOwnerHelp" class="muted small"></div>
-</label>
-<div class="row span2"><hr style="border:none;border-top:1px solid rgba(88,166,255,0.25);margin:10px 0;"></div>
+          <label>
+            Dueño (obligatorio)
+            <select id="dealOwnerId"></select>
+            <div id="dealOwnerHelp" class="muted small"></div>
+          </label>
 
-<label>
-  SUCURSAL (obligatorio)
-  <select id="dealSucursal">
-    <option value="">Selecciona sucursal...</option>
-    <option value="Santiago">Santiago</option>
-    <option value="Antofagasta">Antofagasta</option>
-    <option value="Calama">Calama</option>
-  </select>
-</label>
+          <div class="row span2"><hr style="border:none;border-top:1px solid rgba(88,166,255,0.25);margin:10px 0;"></div>
 
-<label>
-  Peso (kg) (obligatorio)
-  <input id="dealPeso" placeholder="Ej: 70.0" inputmode="decimal" />
-  <div class="muted small">1 decimal, usa punto. Ej: 70.5</div>
-</label>
+          <label>
+            SUCURSAL (obligatorio)
+            <select id="dealSucursal">
+              <option value="">Selecciona sucursal...</option>
+              <option value="Santiago">Santiago</option>
+              <option value="Antofagasta">Antofagasta</option>
+              <option value="Calama">Calama</option>
+            </select>
+          </label>
 
-<label>
-  Estatura (m) (obligatorio)
-  <input id="dealEstatura" placeholder="Ej: 1.75" inputmode="decimal" autocomplete="off" aria-describedby="dealEstaturaHelp" />
-  <div id="dealEstaturaHelp" class="hint-blue">Formato obligatorio: <b>X.XX</b> (o <b>X,XX</b>) en <b>metros</b>. Ej: <b>1.75</b> / <b>1,75</b>. No usar 175.</div>
-</label>
+          <label>
+            Peso (kg) (obligatorio)
+            <input id="dealPeso" placeholder="Ej: 70.0" inputmode="decimal" />
+            <div class="muted small">1 decimal, usa punto. Ej: 70.5</div>
+          </label>
 
-<label>
-  Interés
-  <input id="dealInteres" placeholder="Texto libre" />
-</label>
+          <label>
+            Estatura (m) (obligatorio)
+            <input id="dealEstatura" placeholder="Ej: 1.75" inputmode="decimal" autocomplete="off" aria-describedby="dealEstaturaHelp" />
+            <div id="dealEstaturaHelp" class="hint-blue">Formato obligatorio: <b>X.XX</b> (o <b>X,XX</b>) en <b>metros</b>. Ej: <b>1.75</b> / <b>1,75</b>. No usar 175.</div>
+          </label>
 
-<label>
-  URL-MEDINET (opcional)
-  <input id="dealUrlMedinet" placeholder="https://..." />
-</label>
+          <label>
+            Interés
+            <input id="dealInteres" placeholder="Texto libre" />
+          </label>
 
-<label>
-  Cirugías Previas (opcional)
-  <input id="dealCirugiasPrevias" placeholder="Texto libre" />
-</label>
+          <label>
+            URL-MEDINET (opcional)
+            <input id="dealUrlMedinet" placeholder="https://..." />
+          </label>
 
-<label>
-  CIRUJANO BARIÁTRICO
-  <select id="dealCirujanoBariatrico">
-    <option value="">(opcional)</option>
-  </select>
-</label>
+          <label>
+            Cirugías Previas (opcional)
+            <input id="dealCirugiasPrevias" placeholder="Texto libre" />
+          </label>
 
-<label>
-  CIRUJANO PLASTICO
-  <select id="dealCirujanoPlastico">
-    <option value="">(opcional)</option>
-  </select>
-</label>
+          <label>
+            CIRUJANO BARIÁTRICO
+            <select id="dealCirujanoBariatrico">
+              <option value="">(opcional)</option>
+            </select>
+          </label>
 
-<label>
-  CIRUJANO DE BALON
-  <select id="dealCirujanoBalon">
-    <option value="">(opcional)</option>
-  </select>
-</label>
+          <label>
+            CIRUJANO PLASTICO
+            <select id="dealCirujanoPlastico">
+              <option value="">(opcional)</option>
+            </select>
+          </label>
 
-<label>
-  Validacion PAD (string)
-  <input id="dealValidacionPad" placeholder="Texto" />
-</label>
+          <label>
+            CIRUJANO DE BALON
+            <select id="dealCirujanoBalon">
+              <option value="">(opcional)</option>
+            </select>
+          </label>
 
-<label>
-  Numero familia paciente (string)
-  <input id="dealNumeroFamilia" placeholder="Texto" />
-</label>
+          <label>
+            Validacion PAD (string)
+            <input id="dealValidacionPad" placeholder="Texto" />
+          </label>
 
-<label>
-  Colaborador1
-  <input id="dealColab1" placeholder="Texto" />
-</label>
-<label>
-  Colaborador2
-  <input id="dealColab2" placeholder="Texto" />
-</label>
-<label>
-  Colaborador3
-  <input id="dealColab3" placeholder="Texto" />
-</label>
+          <label>
+            Numero familia paciente (string)
+            <input id="dealNumeroFamilia" placeholder="Texto" />
+          </label>
 
-<div class="row span2">
-  <div class="muted small">Sugerencia: usa <b>Vista previa (dry_run)</b> para ver IMC/Edad/WhatsApp antes de crear.</div>
-</div>
+          <label>
+            Colaborador1
+            <input id="dealColab1" placeholder="Texto" />
+          </label>
 
+          <label>
+            Colaborador2
+            <input id="dealColab2" placeholder="Texto" />
+          </label>
 
-          <div class="muted small"><button id="toggleManualPipeline" type="button" class="secondary">Ingresar Pipeline ID manual</button></div>
-          <div id="manualPipelineWrap" style="display:none;margin-top:8px;">
+          <label>
+            Colaborador3
+            <input id="dealColab3" placeholder="Texto" />
+          </label>
+
+          <div class="row span2">
+            <div class="muted small">Sugerencia: usa <b>Vista previa (dry_run)</b> para ver IMC/Edad/WhatsApp antes de crear.</div>
+          </div>
+
+          <div class="muted small span2">
+            <button id="toggleManualPipeline" type="button" class="secondary">Ingresar Pipeline ID manual</button>
+          </div>
+
+          <div id="manualPipelineWrap" class="span2" style="display:none;margin-top:8px;">
             <input id="manualPipelineId" placeholder="Pipeline ID (manual) ej: 1290779" inputmode="numeric" />
           </div>
-          </label>
+
           <div class="row span2">
             <button id="btnDealPreview" type="button" class="secondary">Vista previa (dry_run)</button>
             <button id="btnDealCreate" type="button">Crear DEAL / TRATO</button>
           </div>
+
           <div class="row span2">
             <span class="muted small">Se usa el contacto resultante del bloque anterior (crear contacto / contacto existente).</span>
           </div>
@@ -265,9 +273,6 @@
 
         <p class="muted small">/api/create-deal · soporta <span class="mono">?dry_run=1</span></p>
       </section>
-
-
-
 
       <section class="card">
         <h2>Buscar en Sell por <span class="mono">RUT_normalizado</span></h2>
@@ -293,6 +298,13 @@
         </form>
 
         <section id="status" class="status"></section>
+
+        <!-- NUEVO: LINKS CLICKABLES -->
+        <details class="details" open>
+          <summary>Registros encontrados (links)</summary>
+          <div id="search_links" class="summary"></div>
+        </details>
+
         <details class="details" open>
           <summary>Resultado (JSON)</summary>
           <pre id="out" class="out"></pre>
@@ -305,7 +317,8 @@
             <span>Dry-run</span>
           </label>
           <span class="muted small">Genera PDFs desde templates en Drive y los guarda en la carpeta del paciente.</span>
-        
+        </div>
+
         <div class="row span2" style="margin-top:6px;">
           <label style="width:100%;">
             <b>Agente (obligatorio para consignar en notas)</b>
@@ -315,42 +328,46 @@
             <div id="docsOwnerHelp" class="muted small"></div>
           </label>
         </div>
-</div>
 
         <details class="details" open id="docsTemplatesWrap" style="margin-top:8px;">
-  <summary>Templates disponibles</summary>
-  <div class="row span2" style="margin:8px 0;">
-    <button id="btnReloadTemplates" type="button">Recargar templates</button>
-    <button id="btnSelectAllTemplates" type="button">Seleccionar todos</button>
-    <button id="btnSelectNoneTemplates" type="button">Ninguno</button>
-    <span class="muted small">Se leen automáticamente desde una carpeta de Drive (TEMPLATE_FOLDER_ID).</span>
-  </div>
-<div class="row span2" style="margin:8px 0;">
-  <input id="docsTemplatesSearch" type="text" placeholder="Buscar plantilla..." />
-  <button id="btnSelectFilteredTemplates" type="button">Seleccionar filtradas</button>
-  <button id="btnDeselectFilteredTemplates" type="button">Desmarcar filtradas</button>
-  <span id="docsTemplatesCount" class="muted small"></span>
-</div>
+          <summary>Templates disponibles</summary>
+          <div class="row span2" style="margin:8px 0;">
+            <button id="btnReloadTemplates" type="button">Recargar templates</button>
+            <button id="btnSelectAllTemplates" type="button">Seleccionar todos</button>
+            <button id="btnSelectNoneTemplates" type="button">Ninguno</button>
+            <span class="muted small">Se leen automáticamente desde una carpeta de Drive (TEMPLATE_FOLDER_ID).</span>
+          </div>
 
-  <div id="docsTemplates" class="templates-list"></div>
-</details>
+          <div class="row span2" style="margin:8px 0;">
+            <input id="docsTemplatesSearch" type="text" placeholder="Buscar plantilla..." />
+            <button id="btnSelectFilteredTemplates" type="button">Seleccionar filtradas</button>
+            <button id="btnDeselectFilteredTemplates" type="button">Desmarcar filtradas</button>
+            <span id="docsTemplatesCount" class="muted small"></span>
+          </div>
 
-<section id="docs_status" class="status"></section>
+          <div id="docsTemplates" class="templates-list"></div>
+        </details>
+
+        <section id="docs_status" class="status"></section>
+
         <details class="details">
           <summary>Resultado documentos (JSON)</summary>
           <pre id="docs_out" class="out"></pre>
-        
-</details>
-<details class="details" open>
-  <summary>Links documentos</summary>
-  <div id="docs_links" class="docs-links"></div>
-</details>
+        </details>
 
+        <details class="details" open>
+          <summary>Links documentos</summary>
+          <div id="docs_links" class="docs-links"></div>
+        </details>
 
         <footer class="muted small">/health · /api/search-rut</footer>
       </section>
     </main>
 
     <script src="/app.js"></script>
+
+    <!-- PATCH: Links + barra de acciones -->
+    <script src="/links_patch.js"></script>
+    <script src="/portal_nav_actions.js"></script>
   </body>
 </html>
