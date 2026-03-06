@@ -57,62 +57,27 @@ function enforceHeightFormat(inputEl) {
 
   const sanitize = () => {
     let v = inputEl.value || "";
-
-    // 1) permitir solo dígitos, punto o coma
-    v = v.replace(/[^\d.,]/g, "");
-
-    // 2) permitir solo UN separador (el primero)
-    const firstSepIndex = v.search(/[.,]/);
-    if (firstSepIndex !== -1) {
-      const sep = v[firstSepIndex];
-      const before = v.slice(0, firstSepIndex).replace(/[.,]/g, "");
-      const afterRaw = v.slice(firstSepIndex + 1).replace(/[.,]/g, "");
-      const after = afterRaw.slice(0, 2); // max 2 decimales
-      v = before + sep + after;
-    } else {
-      v = v.replace(/[.,]/g, "");
-    }
-
+    v = v.replace(/\D/g, "").slice(0, 3);
     inputEl.value = v;
   };
 
   inputEl.addEventListener("input", sanitize);
-
-  inputEl.addEventListener("blur", () => {
-    let v = String(inputEl.value || "").trim();
-
-    // normaliza coma a punto
-    v = v.replace(",", ".");
-
-    // si viene entero corto (ej 1 o 2), completar .00
-    if (/^\d{1,2}$/.test(v)) v = v + ".00";
-
-    // si viene con 1 decimal, completar con 0 (ej 1.7 -> 1.70)
-    const m1 = v.match(/^(\d+)\.(\d)$/);
-    if (m1) v = `${m1[1]}.${m1[2]}0`;
-
-    // si termina en punto, completar 00
-    if (/^\d+\.$/.test(v)) v = v + "00";
-
-    inputEl.value = v;
-  });
+  inputEl.addEventListener("blur", sanitize);
 }
 
-// Estatura estricta: exige formato X.XX (o X,XX) y rango razonable en metros.
-function parseHeightMetersStrict(raw) {
-  const s = String(raw || "").trim().replace(",", ".");
+// Estatura estricta: exige centímetros enteros (Zendesk field string numérico).
+function parseHeightCmStrict(raw) {
+  const s = String(raw || "").trim().replace(/\D/g, "");
   if (!s) return null;
-
-  // Requiere 2 decimales
-  if (!/^\d+(\.\d{2})$/.test(s)) return null;
+  if (!/^\d{3}$/.test(s)) return null;
 
   const n = Number(s);
   if (!Number.isFinite(n)) return null;
 
-  // Rango razonable: 1.20 a 2.50 metros
-  if (n < 1.2 || n > 2.5) return null;
+  // Rango razonable: 120 a 250 cm
+  if (n < 120 || n > 250) return null;
 
-  return Number(n.toFixed(2));
+  return String(n);
 }
 
 
@@ -1657,13 +1622,13 @@ if (!ownerId || !Number.isFinite(ownerId)) {
   body.estatura = (document.getElementById('dealEstatura')?.value || '').trim();
 
   // Validación estricta de estatura para evitar errores (ej: 175 en vez de 1.75)
-  const estaturaM = parseHeightMetersStrict(body.estatura);
-  if (estaturaM === null) {
-    setStatus(dStatus, 'Estatura inválida. Usa metros con formato X.XX (ej: 1.75 o 1,75). No uses 175.', 'error');
+  const estaturaCm = parseHeightCmStrict(body.estatura);
+  if (estaturaCm === null) {
+    setStatus(dStatus, 'Estatura inválida. Usa centimetros enteros (ej: 175). No usar 1,75 o 1.75.', 'error');
     document.getElementById('dealEstatura')?.focus();
     return;
   }
-  body.estatura = estaturaM.toFixed(2);
+  body.estatura = estaturaCm;
 
   body.interes = (document.getElementById('dealInteres')?.value || '').trim();
   body.url_medinet = (document.getElementById('dealUrlMedinet')?.value || '').trim();
@@ -1671,6 +1636,7 @@ if (!ownerId || !Number.isFinite(ownerId)) {
   body.cirujano_bariatrico = (document.getElementById('dealCirujanoBariatrico')?.value || '').trim();
   body.cirujano_plastico = (document.getElementById('dealCirujanoPlastico')?.value || '').trim();
   body.cirujano_balon = (document.getElementById('dealCirujanoBalon')?.value || '').trim();
+  body.cirujano_general = (document.getElementById('dealCirujanoGeneral')?.value || '').trim();
   body.validacion_pad = (document.getElementById('dealValidacionPad')?.value || '').trim();
   body.numero_familia_paciente = (document.getElementById('dealNumeroFamilia')?.value || '').trim();
   body.colaborador1 = (document.getElementById('dealColab1')?.value || '').trim();
@@ -1864,5 +1830,18 @@ document.addEventListener('DOMContentLoaded', () => {
   loadDealListChoices('CIRUJANO BARIÁTRICO', 'dealCirujanoBariatrico');
   loadDealListChoices('CIRUJANO PLASTICO', 'dealCirujanoPlastico');
   loadDealListChoices('CIRUJANO DE BALON', 'dealCirujanoBalon');
+  const cirujanoGeneral = document.getElementById('dealCirujanoGeneral');
+  if (cirujanoGeneral) {
+    const options = [
+      'SILVANA BINGHINOTTO',
+      'CHRISTIAN ROMERO',
+      'BRUNO SOLARI',
+      'CARLOS ARCE',
+      'RODRIGO VILLAGRAN',
+      'ALBERTO SIRABO',
+      'NELSON AROS'
+    ];
+    cirujanoGeneral.innerHTML = `<option value="">(opcional)</option>` + options.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+  }
 });
 
