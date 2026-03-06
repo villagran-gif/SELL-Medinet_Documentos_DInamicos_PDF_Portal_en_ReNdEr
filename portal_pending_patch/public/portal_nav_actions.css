@@ -1,0 +1,108 @@
+/* Portal Pending Patch: Quick Actions + Tampermonkey Export + Medinet */
+
+/* --- Quick Actions bar (inserted via JS) --- */
+.quick-actions-card { padding: 14px 16px; }
+.quick-actions-card h2 { margin-bottom: 10px; }
+
+.quick-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.quick-actions .qa-btn {
+  flex: 1 1 200px;
+  min-width: 180px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(0, 56, 101, 0.22);
+  color: var(--fg);
+  cursor: pointer;
+  user-select: none;
+}
+
+.quick-actions .qa-btn:hover { background: rgba(0, 56, 101, 0.32); }
+
+.quick-actions .qa-btn .qa-k {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(88,166,255,0.35);
+  background: rgba(88,166,255,0.12);
+}
+
+.quick-actions .qa-btn .qa-ico { font-size: 16px; opacity: 0.95; }
+
+/* highlight target card when navigating */
+.qa-pulse {
+  outline: 2px solid rgba(88, 166, 255, 0.65);
+  box-shadow: 0 0 0 6px rgba(88, 166, 255, 0.18);
+  transition: box-shadow 180ms ease, outline 180ms ease;
+}
+
+/* --- Tampermonkey export card --- */
+#tmExport .row { align-items: center; flex-wrap: wrap; }
+#tmExport pre.out { max-height: 340px; overflow: auto; }
+
+#tmLinksList {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+
+#tmLinksList a {
+  display: inline-block;
+  padding: 6px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.25);
+  color: var(--fg);
+  text-decoration: none;
+}
+
+#tmLinksList a:hover { background: rgba(0,0,0,0.32); }
+
+.tm-medinet {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tm-medinet-link a {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(88,166,255,0.35);
+  background: rgba(88,166,255,0.12);
+  color: var(--fg);
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.tm-medinet-link a:hover { background: rgba(88,166,255,0.18); }
+
+/* small helper badge */
+.qa-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.qa-hint .pill {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.22);
+  color: var(--fg);
+}

@@ -1,0 +1,24 @@
+*** Begin Patch
+*** Update File: public/index.html
+@@
+-<label>
+-  Estatura (m) (obligatorio)
+-  <input id="dealEstatura" placeholder="Ej: 1.75" inputmode="decimal" autocomplete="off" aria-describedby="dealEstaturaHelp" />
+-  <div id="dealEstaturaHelp" class="hint-blue">Formato obligatorio: <b>X.XX</b> (o <b>X,XX</b>) en <b>metros</b>. Ej: <b>1.75</b> / <b>1,75</b>. No usar 175.</div>
+-</label>
++<label>
++  Estatura (cm) (obligatorio)
++  <input id="dealEstatura" placeholder="Ej: 175" inputmode="decimal" autocomplete="off" aria-describedby="dealEstaturaHelp" />
++  <div id="dealEstaturaHelp" class="hint-blue">Formato recomendado: <b>centímetros enteros</b>. Ej: <b>175</b>. También acepta <b>metros</b> (ej: <b>1.75</b> / <b>1,75</b>) y lo convierte a cm automáticamente.</div>
++</label>
+@@
+-          <div class="row span2">
+-            <button id="btnDealPreview" type="button" class="secondary">Vista previa (dry_run)</button>
+-            <button id="btnDealCreate" type="button">Crear DEAL / TRATO</button>
+-          </div>
++          <div class="row span2">
++            <button id="btnDealPreview" type="button" class="secondary">Vista previa (dry_run)</button>
++            <button id="btnDealCreate" type="button">Crear DEAL / TRATO</button>
++            <button id="btnDealToMedinet" type="button" class="secondary" disabled>Subir a Medinet</button>
++          </div>
+*** End Patch

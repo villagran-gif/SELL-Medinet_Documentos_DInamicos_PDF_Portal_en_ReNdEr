@@ -1,0 +1,100 @@
+*** Begin Patch
+*** Update File: server.js
+@@
+ app.use(express.static(path.join(__dirname, 'public')));
+ 
+ app.get('/health', (_req, res) => res.status(200).send('ok'));
++
++// ------------------------------------------------------------
++// Medinet backend proxy (NO expone API key al frontend)
++// Backend: sell-medinet-backend (Render)
++//   - POST /medinet/import  (requiere header X-API-Key)
++//   - POST /medinet/search  (requiere header X-API-Key)
++//
++// Env en este Portal (Render):
++//   - MEDINET_BACKEND_BASE_URL = https://sell-medinet-backend.onrender.com
++//   - MEDINET_BACKEND_API_KEY  = (la misma API_KEY del backend)
++// ------------------------------------------------------------
++
++function getMedinetBackendBase() {
++  return String(process.env.MEDINET_BACKEND_BASE_URL || process.env.MEDINET_BACKEND_URL || 'https://sell-medinet-backend.onrender.com')
++    .trim()
++    .replace(/\/$/, '');
++}
++
++function getMedinetApiKey() {
++  return String(process.env.MEDINET_BACKEND_API_KEY || process.env.MEDINET_API_KEY || '').trim();
++}
++
++async function safeReadJson(resp) {
++  const text = await resp.text().catch(() => '');
++  if (!text) return null;
++  try { return JSON.parse(text); } catch (_e) { return { raw: text }; }
++}
++
++app.post('/api/medinet/import', async (req, res) => {
++  const apiKey = getMedinetApiKey();
++  if (!apiKey) {
++    return res.status(500).json({
++      ok: false,
++      status: 500,
++      error: 'MISSING_MEDINET_API_KEY',
++      message: 'Falta MEDINET_BACKEND_API_KEY (o MEDINET_API_KEY) en Render env vars.',
++    });
++  }
++
++  // aceptar body plano o { payload: {...} }
++  const incoming = (req.body && typeof req.body === 'object') ? req.body : {};
++  const payload = (incoming && incoming.payload && typeof incoming.payload === 'object') ? incoming.payload : incoming;
++
++  try {
++    const url = getMedinetBackendBase() + '/medinet/import';
++    const resp = await fetch(url, {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/json',
++        'X-API-Key': apiKey,
++      },
++      body: JSON.stringify(payload || {}),
++    });
++
++    const json = await safeReadJson(resp);
++    return res.status(resp.status).json(json);
++  } catch (err) {
++    console.error('medinet/import proxy error', err);
++    return res.status(502).json({ ok: false, status: 502, error: 'MEDINET_PROXY_ERROR', message: err.message || String(err) });
++  }
++});
++
++app.post('/api/medinet/search', async (req, res) => {
++  const apiKey = getMedinetApiKey();
++  if (!apiKey) {
++    return res.status(500).json({
++      ok: false,
++      status: 500,
++      error: 'MISSING_MEDINET_API_KEY',
++      message: 'Falta MEDINET_BACKEND_API_KEY (o MEDINET_API_KEY) en Render env vars.',
++    });
++  }
++
++  const body = (req.body && typeof req.body === 'object') ? req.body : {};
++
++  try {
++    const url = getMedinetBackendBase() + '/medinet/search';
++    const resp = await fetch(url, {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/json',
++        'X-API-Key': apiKey,
++      },
++      body: JSON.stringify(body || {}),
++    });
++
++    const json = await safeReadJson(resp);
++    return res.status(resp.status).json(json);
++  } catch (err) {
++    console.error('medinet/search proxy error', err);
++    return res.status(502).json({ ok: false, status: 502, error: 'MEDINET_PROXY_ERROR', message: err.message || String(err) });
++  }
++});
+*** End Patch

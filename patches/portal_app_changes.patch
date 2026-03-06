@@ -1,0 +1,225 @@
+*** Begin Patch
+*** Update File: public/app.js
+@@
+-// -------------------------
+-// Estatura (m): input guard (evita errores tipo 175 vs 1.75)
+-// Acepta solo dígitos + un separador (.,) + 2 decimales
+-// -------------------------
+-function enforceHeightFormat(inputEl) {
+-  if (!inputEl) return;
+-
+-  const sanitize = () => {
+-    let v = inputEl.value || "";
+-
+-    // 1) permitir solo dígitos, punto o coma
+-    v = v.replace(/[^\d.,]/g, "");
+-
+-    // 2) permitir solo UN separador (el primero)
+-    const firstSepIndex = v.search(/[.,]/);
+-    if (firstSepIndex !== -1) {
+-      const sep = v[firstSepIndex];
+-      const before = v.slice(0, firstSepIndex).replace(/[.,]/g, "");
+-      const afterRaw = v.slice(firstSepIndex + 1).replace(/[.,]/g, "");
+-      const after = afterRaw.slice(0, 2); // max 2 decimales
+-      v = before + sep + after;
+-    } else {
+-      v = v.replace(/[.,]/g, "");
+-    }
+-
+-    inputEl.value = v;
+-  };
+-
+-  inputEl.addEventListener("input", sanitize);
+-
+-  inputEl.addEventListener("blur", () => {
+-    let v = String(inputEl.value || "").trim();
+-
+-    // normaliza coma a punto
+-    v = v.replace(",", ".");
+-
+-    // si viene entero corto (ej 1 o 2), completar .00
+-    if (/^\d{1,2}$/.test(v)) v = v + ".00";
+-
+-    // si viene con 1 decimal, completar con 0 (ej 1.7 -> 1.70)
+-    const m1 = v.match(/^(\d+)\.(\d)$/);
+-    if (m1) v = `${m1[1]}.${m1[2]}0`;
+-
+-    // si termina en punto, completar 00
+-    if (/^\d+\.$/.test(v)) v = v + "00";
+-
+-    inputEl.value = v;
+-  });
+-}
++// -------------------------
++// Estatura (cm) guard:
++// - Preferimos cm enteros (ej: 175)
++// - Si el usuario escribe metros (ej: 1.75 / 1,75) lo convertimos a cm al salir
++// -------------------------
++function enforceHeightFormat(inputEl) {
++  if (!inputEl) return;
++
++  const sanitize = () => {
++    let v = inputEl.value || "";
++    // permitir solo dígitos, punto o coma
++    v = v.replace(/[^\d.,]/g, "");
++
++    // permitir solo 1 separador (normalizamos a ".")
++    const firstSepIndex = v.search(/[.,]/);
++    if (firstSepIndex !== -1) {
++      const before = v.slice(0, firstSepIndex).replace(/[.,]/g, "");
++      const afterRaw = v.slice(firstSepIndex + 1).replace(/[.,]/g, "");
++      const after = afterRaw.slice(0, 2); // max 2 decimales si viene en metros
++      v = before + "." + after;
++    } else {
++      v = v.replace(/[.,]/g, "");
++    }
++
++    inputEl.value = v;
++  };
++
++  inputEl.addEventListener("input", sanitize);
++
++  inputEl.addEventListener("blur", () => {
++    const cm = parseHeightToCmStrict(inputEl.value);
++    if (cm !== null) inputEl.value = String(cm);
++  });
++}
++
++// Estatura -> cm (estricto y robusto)
++// - Acepta: "175" (cm) o "1.75" / "1,75" (m)
++// - Devuelve entero cm, o null si inválido
++function parseHeightToCmStrict(raw) {
++  const s0 = String(raw || "").trim();
++  if (!s0) return null;
++  const s = s0.replace(",", ".").replace(/[^\d.]/g, "");
++  if (!s) return null;
++
++  // metros con decimales
++  if (s.includes(".")) {
++    if (!/^\d+(\.\d{1,2})?$/.test(s)) return null;
++    const m = Number(s);
++    if (!Number.isFinite(m)) return null;
++    if (m < 1.0 || m > 2.5) return null;
++    return Math.round(m * 100);
++  }
++
++  // cm enteros
++  if (!/^\d+$/.test(s)) return null;
++  const cm = Number(s);
++  if (!Number.isFinite(cm)) return null;
++  if (cm < 80 || cm > 250) return null;
++  return Math.round(cm);
++}
+@@
+ const dStatus = document.getElementById('d_status');
+ const dSummary = document.getElementById('d_summary');
+ const dDetails = document.getElementById('d_details');
+ const dOut = document.getElementById('d_out');
++const btnDealToMedinet = document.getElementById('btnDealToMedinet');
++
++// Guarda el último payload listo para Medinet (desde crear deal)
++let __lastMedinetPayload = null;
++
++function buildMedinetPayloadFromDealCreate({ deal, contactId, body }) {
++  const baseUrl = deal && deal.desktop_url ? String(deal.desktop_url).split('/sales/deals/')[0] : 'https://clinyco.zendesk.com';
++  const dealUrl = deal && deal.desktop_url ? String(deal.desktop_url) : (baseUrl + '/sales/deals/' + String(deal && deal.id ? deal.id : ''));
++  const contactUrl = baseUrl + '/sales/contacts/' + String(contactId);
++
++  // body viene de collectContactData() + medical fields
++  return {
++    deal_id: deal && deal.id ? Number(deal.id) : undefined,
++    contact_id: Number(contactId),
++    rut: (body && body.rut) ? String(body.rut) : '',
++    first_name: (body && body.nombres) ? String(body.nombres) : '',
++    last_name: (body && body.apellidos) ? String(body.apellidos) : '',
++    birth_date: (body && body.fecha_nacimiento) ? String(body.fecha_nacimiento) : '',
++    email: (body && body.email) ? String(body.email) : '',
++    telefono1: (body && body.telefono1) ? String(body.telefono1) : '',
++    telefono2: (body && body.telefono2) ? String(body.telefono2) : '',
++    direccion: (body && body.direccion) ? String(body.direccion) : '',
++    comuna: (body && body.comuna) ? String(body.comuna) : '',
++    tramo_modalidad: (body && body.modalidad) ? String(body.modalidad) : '',
++    aseguradora: (body && body.aseguradora) ? String(body.aseguradora) : (body && body.modalidad ? String(body.modalidad) : ''),
++    peso: (body && body.peso) ? String(body.peso) : '',
++    talla: (body && body.estatura) ? String(body.estatura) : '',
++    deal_url: dealUrl,
++    contact_url: contactUrl,
++    source: 'portal_create_deal',
++    timestamp: new Date().toISOString(),
++  };
++}
++
++// Subir a Medinet (backend)
++// Endpoint real en sell-medinet-backend: POST /medinet/import (X-API-Key)
++// El portal debe exponer un proxy server-side: POST /api/medinet/import
++const MEDINET_IMPORT_ENDPOINT = '/api/medinet/import';
++
++async function postJson(url, payload) {
++  const res = await fetch(url, {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify(payload),
++  });
++  const text = await res.text().catch(() => '');
++  let json = null;
++  try { json = text ? JSON.parse(text) : null; } catch (_e) { json = { raw: text }; }
++  return { res, json };
++}
++
++function pickBackendResult(json) {
++  const j = (json && typeof json === 'object') ? json : {};
++  const message = j.message || j.msg || null;
++  const key = j.key || j.mf_key || (j.data && (j.data.key || j.data.mf_key)) || null;
++  const download_url = j.download_url || j.url || (j.data && (j.data.download_url || j.data.url)) || null;
++  return { message, key, download_url, raw: j };
++}
++
++async function medinetStorePayload(payload) {
++  const r = await postJson(MEDINET_IMPORT_ENDPOINT, payload);
++  if (!r.res.ok) {
++    throw new Error(`Backend ${r.res.status}: ${JSON.stringify(r.json).slice(0, 400)}`);
++  }
++  return { endpoint: MEDINET_IMPORT_ENDPOINT, json: r.json };
++}
+
+@@
+ async function callDeal(dryRun) {
+@@
+   body.peso = (document.getElementById('dealPeso')?.value || '').trim();
+   body.estatura = (document.getElementById('dealEstatura')?.value || '').trim();
+ 
+-  // Validación estricta de estatura para evitar errores (ej: 175 en vez de 1.75)
+-  const estaturaM = parseHeightMetersStrict(body.estatura);
+-  if (estaturaM === null) {
+-    setStatus(dStatus, 'Estatura inválida. Usa metros con formato X.XX (ej: 1.75 o 1,75). No uses 175.', 'error');
+-    document.getElementById('dealEstatura')?.focus();
+-    return;
+-  }
+-  body.estatura = estaturaM.toFixed(2);
++  // Estatura: guardar en cm (Sell solo admite enteros) y calcular IMC correctamente en backend
++  const estaturaCm = parseHeightToCmStrict(body.estatura);
++  if (estaturaCm === null) {
++    setStatus(dStatus, 'Estatura inválida. Usa cm (ej: 175) o metros (ej: 1.75 / 1,75).', 'error');
++    document.getElementById('dealEstatura')?.focus();
++    return;
++  }
++  body.estatura = String(estaturaCm);
+@@
+   setStatus(dStatus, dryRun ? 'Generando vista previa de Deal...' : 'Creando Deal/TRATO...', 'running');
++
++  // reset botón Medinet
++  if (btnDealToMedinet) {
++    btnDealToMedinet.disabled = true;
++    btnDealToMedinet.textContent = 'Subir a Medinet';
++  }
+ 
+   try {
+@@
+     renderDealResult(json);
++
++    // Si se creó el deal (no dry-run), habilitar "Subir a Medinet"
++    if (!dryRun && res.ok && json && json.deal && json.deal.id) {
++      __lastMedinetPayload = buildMedinetPayloadFromDealCreate({ deal: json.deal, contactId, body });
++      if (btnDealToMedinet) btnDealToMedinet.disabled = false;
++    }
+*** End Patch
