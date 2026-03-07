@@ -14,7 +14,10 @@
   const state = {
     headerPinned: false,
     summaryObserverInstalled: false,
+    rutLookupObserverInstalled: false,
+    statusObserverInstalled: false,
     boundDealButtons: false,
+    boundCtaDelegate: false,
   };
 
   function $(id) {
@@ -35,17 +38,113 @@
     return el ? String(el.value || "").trim() : "";
   }
 
+  function parseContactIdFromHref(href) {
+    const raw = String(href || "");
+    if (!raw) return 0;
+    const patterns = [
+      /\/contacts\/(\d+)/i,
+      /contact_id=(\d+)/i,
+      /people\/(\d+)/i,
+    ];
+    for (const rx of patterns) {
+      const m = raw.match(rx);
+      if (m) return Number(m[1] || 0);
+    }
+    return 0;
+  }
+
+  function parseDealIdFromHref(href) {
+    const raw = String(href || "");
+    if (!raw) return 0;
+    const patterns = [
+      /\/deals\/(\d+)/i,
+      /deal_id=(\d+)/i,
+    ];
+    for (const rx of patterns) {
+      const m = raw.match(rx);
+      if (m) return Number(m[1] || 0);
+    }
+    return 0;
+  }
+
+  function normalizeText(s) {
+    return String(s || "").replace(/\s+/g, " ").trim();
+  }
+
+  function extractNameFromText(text) {
+    const src = normalizeText(text);
+    if (!src) return "";
+    const patterns = [
+      /Contacto existente:\s*(.*?)\s*(?:—|Abrir en Sell|Mobile|$)/i,
+      /•\s*(.*?)\s*(?:—|Abrir en Sell|Mobile|$)/,
+      /CREAR TRATO para CONTACTO\s*(.*?)\s*·\s*CONTACT[_ ]ID/i,
+    ];
+    for (const rx of patterns) {
+      const m = src.match(rx);
+      if (m && m[1]) return normalizeText(m[1]);
+    }
+    return "";
+  }
+
+  function inspectContainerForContext(container) {
+    if (!container) {
+      return { hasContactId: false, contactId: 0, name: "", rut: "", hasDeal: false };
+    }
+
+    const text = normalizeText(container.textContent || "");
+    const links = Array.from(container.querySelectorAll("a[href]"));
+    let contactId = 0;
+    let hasDeal = false;
+
+    for (const link of links) {
+      const href = link.getAttribute("href") || "";
+      if (!contactId) contactId = parseContactIdFromHref(href);
+      if (parseDealIdFromHref(href)) hasDeal = true;
+    }
+
+    if (!contactId) {
+      const existingCta = container.querySelector("#postContactDealCta");
+      if (existingCta) {
+        const m = normalizeText(existingCta.textContent || "").match(/CONTACT[_ ]ID\s*(\d+)/i);
+        if (m) contactId = Number(m[1] || 0);
+      }
+    }
+
+    const name = extractNameFromText(text);
+    return {
+      hasContactId: Number.isFinite(contactId) && contactId > 0,
+      contactId,
+      name,
+      rut: readValue("c_rut"),
+      hasDeal,
+      text,
+      container,
+    };
+  }
+
+  function detectDomContactContext() {
+    const candidates = [inspectContainerForContext($("c_summary")), inspectContainerForContext($("c_rut_lookup"))];
+    for (const ctx of candidates) {
+      if (ctx.hasContactId) return ctx;
+    }
+    return { hasContactId: false, contactId: 0, name: "", rut: readValue("c_rut"), hasDeal: false };
+  }
+
   function getContactContext() {
     const firstName = readValue("c_nombres");
     const lastName = readValue("c_apellidos");
     const rut = readValue("c_rut");
-    const contactId = Number(window.__lastContactId || 0);
-    const name = [firstName, lastName].filter(Boolean).join(" ").trim();
+    const directContactId = Number(window.__lastContactId || 0);
+    const directName = [firstName, lastName].filter(Boolean).join(" ").trim();
+    const detected = detectDomContactContext();
+    const contactId = directContactId > 0 ? directContactId : detected.contactId;
+    const name = directName || detected.name || "";
     return {
       name,
-      rut,
+      rut: rut || detected.rut || "",
       contactId,
       hasContactId: Number.isFinite(contactId) && contactId > 0,
+      hasDeal: !!detected.hasDeal,
     };
   }
 
@@ -106,13 +205,22 @@
   }
 
   function scrollToDealForm() {
-    const target = $("dealForm") || ensureDealHeader();
+    const header = $("dealStage1Header");
+    const target = (header && !header.hidden ? header : null) || $("dealForm") || ensureDealHeader();
     if (!target) return;
 
     const card = getDealCard() || target;
-    card.scrollIntoView({ behavior: "smooth", block: "start" });
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
     card.classList.add("deal-stage1-pulse");
     window.setTimeout(() => card.classList.remove("deal-stage1-pulse"), 1200);
+
+    window.setTimeout(() => {
+      const focusTarget = $("dealPipelineId") || $("dealOwnerId") || $("dealPeso");
+      try {
+        focusTarget?.focus({ preventScroll: true });
+      } catch (_err) {
+      }
+    }, 260);
   }
 
   function setDealStatus(message, kind) {
@@ -126,24 +234,55 @@
     statusEl.textContent = message || "";
   }
 
-  function ensureSummaryCta() {
-    const summary = $("c_summary");
-    if (!summary) return;
-
-    let wrap = $("postContactDealCtaWrap");
+  function activatePostContactDealCta() {
     const ctx = getContactContext();
-    const hasSummaryContent = !!String(summary.textContent || "").trim();
+    if (ctx.hasContactId) {
+      window.__lastContactId = Number(ctx.contactId);
+    }
+    state.headerPinned = true;
+    renderDealHeader(true);
+    scrollToDealForm();
+  }
 
-    if (!ctx.hasContactId || !hasSummaryContent) {
-      if (wrap) wrap.remove();
+  function isContainerMeaningful(container) {
+    if (!container) return false;
+    const cloned = container.cloneNode(true);
+    cloned.querySelectorAll("#postContactDealCtaWrap").forEach((el) => el.remove());
+    return !!normalizeText(cloned.textContent || "");
+  }
+
+  function findBestCtaHost() {
+    const summary = $("c_summary");
+    const rutLookup = $("c_rut_lookup");
+    const summaryCtx = inspectContainerForContext(summary);
+    const lookupCtx = inspectContainerForContext(rutLookup);
+
+    if (summaryCtx.hasContactId) return { host: summary, context: summaryCtx };
+    if (lookupCtx.hasContactId) return { host: rutLookup, context: lookupCtx };
+    if (isContainerMeaningful(summary)) return { host: summary, context: summaryCtx };
+    return { host: summary || rutLookup, context: summaryCtx.hasContactId ? summaryCtx : lookupCtx };
+  }
+
+  function ensureSummaryCta() {
+    const placement = findBestCtaHost();
+    const host = placement.host;
+    const ctx = getContactContext();
+    const summaryWraps = document.querySelectorAll("#postContactDealCtaWrap");
+
+    if (!host) return;
+
+    if (!ctx.hasContactId || ctx.hasDeal || !isContainerMeaningful(host)) {
+      summaryWraps.forEach((el) => el.remove());
       return;
     }
 
+    let wrap = host.querySelector("#postContactDealCtaWrap");
     if (!wrap) {
+      summaryWraps.forEach((el) => el.remove());
       wrap = document.createElement("div");
       wrap.id = "postContactDealCtaWrap";
       wrap.className = "post-contact-deal-cta";
-      summary.appendChild(wrap);
+      host.appendChild(wrap);
     }
 
     const safeName = escapeHtml(ctx.name || "CONTACTO SIN NOMBRE");
@@ -154,15 +293,56 @@
         CREAR TRATO para CONTACTO ${safeName} · CONTACT_ID ${escapeHtml(String(ctx.contactId))}
       </button>
     `;
+  }
 
-    const btn = $("postContactDealCta");
-    if (btn) {
-      btn.addEventListener("click", () => {
-        state.headerPinned = true;
-        renderDealHeader(true);
-        scrollToDealForm();
-      });
-    }
+  function buildPreviewKvRow(label, value) {
+    return `<div class="k">${escapeHtml(label)}</div><div class="v">${escapeHtml(value || "—")}</div>`;
+  }
+
+  function ensureFallbackPreviewCard() {
+    const cStatus = $("c_status");
+    const cSummary = $("c_summary");
+    if (!cStatus || !cSummary) return;
+
+    const statusText = normalizeText(cStatus.textContent || "");
+    const alreadyHasPreview = !!cSummary.querySelector(".kv");
+    if (alreadyHasPreview) return;
+    if (!/Vista\s+Previa\s+OK/i.test(statusText)) return;
+
+    const fields = {
+      rut_normalizado: readValue("c_rut").replace(/\./g, ""),
+      rut_o_id: readValue("c_rut"),
+      nombres: readValue("c_nombres"),
+      apellidos: readValue("c_apellidos"),
+      fecha_nacimiento: readValue("c_fecha_nacimiento"),
+      telefono1: readValue("c_telefono1"),
+      telefono2: readValue("c_telefono2"),
+      email: readValue("c_email"),
+      aseguradora: readValue("c_aseguradora"),
+      modalidad: readValue("c_modalidad"),
+      direccion: readValue("c_direccion"),
+      comuna: readValue("c_comuna"),
+    };
+
+    const hasAny = Object.values(fields).some((v) => String(v || "").trim());
+    if (!hasAny) return;
+
+    cSummary.innerHTML = `
+      <div class="kv">
+        ${buildPreviewKvRow("RUT normalizado", fields.rut_normalizado)}
+        ${buildPreviewKvRow("RUT (humano)", fields.rut_o_id)}
+        ${buildPreviewKvRow("Nombres", fields.nombres)}
+        ${buildPreviewKvRow("Apellidos", fields.apellidos)}
+        ${buildPreviewKvRow("Fecha Nacimiento", fields.fecha_nacimiento)}
+        ${buildPreviewKvRow("Teléfono 1", fields.telefono1)}
+        ${buildPreviewKvRow("Teléfono 2", fields.telefono2)}
+        ${buildPreviewKvRow("Correo", fields.email)}
+        ${buildPreviewKvRow("Aseguradora", fields.aseguradora)}
+        ${buildPreviewKvRow("Modalidad", fields.modalidad)}
+        ${buildPreviewKvRow("Dirección", fields.direccion)}
+        ${buildPreviewKvRow("Comuna", fields.comuna)}
+      </div>
+    `;
   }
 
   function replaceColab1Input() {
@@ -246,16 +426,19 @@
     state.boundDealButtons = true;
   }
 
+  function refreshUi() {
+    ensureFallbackPreviewCard();
+    ensureSummaryCta();
+    if (state.headerPinned) renderDealHeader(true);
+  }
+
   function installSummaryObserver() {
     if (state.summaryObserverInstalled) return;
     const summary = $("c_summary");
     if (!summary) return;
 
     const observer = new MutationObserver(() => {
-      window.requestAnimationFrame(() => {
-        ensureSummaryCta();
-        if (state.headerPinned) renderDealHeader(true);
-      });
+      window.requestAnimationFrame(refreshUi);
     });
 
     observer.observe(summary, {
@@ -267,23 +450,71 @@
     state.summaryObserverInstalled = true;
   }
 
+  function installRutLookupObserver() {
+    if (state.rutLookupObserverInstalled) return;
+    const rutLookup = $("c_rut_lookup");
+    if (!rutLookup) return;
+
+    const observer = new MutationObserver(() => {
+      window.requestAnimationFrame(refreshUi);
+    });
+
+    observer.observe(rutLookup, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    state.rutLookupObserverInstalled = true;
+  }
+
+  function installStatusObserver() {
+    if (state.statusObserverInstalled) return;
+    const status = $("c_status");
+    if (!status) return;
+
+    const observer = new MutationObserver(() => {
+      window.requestAnimationFrame(refreshUi);
+    });
+
+    observer.observe(status, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    state.statusObserverInstalled = true;
+  }
+
   function bindContactFieldRefresh() {
-    ["c_nombres", "c_apellidos", "c_rut"].forEach((id) => {
+    ["c_nombres", "c_apellidos", "c_rut", "c_fecha_nacimiento", "c_telefono1", "c_telefono2", "c_email", "c_aseguradora", "c_modalidad", "c_direccion", "c_comuna"].forEach((id) => {
       const el = $(id);
       if (!el) return;
-      el.addEventListener("input", () => {
-        ensureSummaryCta();
-        if (state.headerPinned) renderDealHeader(true);
-      });
+      el.addEventListener("input", refreshUi);
+      el.addEventListener("change", refreshUi);
     });
+  }
+
+  function bindDelegatedClicks() {
+    if (state.boundCtaDelegate) return;
+    document.addEventListener("click", (ev) => {
+      const btn = ev.target && ev.target.closest ? ev.target.closest("#postContactDealCta") : null;
+      if (!btn) return;
+      ev.preventDefault();
+      activatePostContactDealCta();
+    }, true);
+    state.boundCtaDelegate = true;
   }
 
   function boot() {
     replaceColab1Input();
     ensureDealHeader();
-    ensureSummaryCta();
+    refreshUi();
     bindDealButtons();
+    bindDelegatedClicks();
     installSummaryObserver();
+    installRutLookupObserver();
+    installStatusObserver();
     bindContactFieldRefresh();
 
     if (state.headerPinned) {
