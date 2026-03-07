@@ -1,0 +1,10 @@
+*** public/index.html
+--- public/index.html
+@@
+-    <link rel="stylesheet" href="/portal_nav_actions.css" />
++    <link rel="stylesheet" href="/portal_nav_actions.css" />
++    <link rel="stylesheet" href="/deal_context_stage1.css" />
+@@
+-  </body>
++    <script src="/deal_context_stage1.js"></script>
++  </body>
