@@ -1,35 +1,22 @@
-PATCH — Pendientes (Sección botones + Export Tampermonkey)
+ZIP listo para overlay de ETAPA 1.
 
-Qué agrega
-1) Una sección de 4 botones (A/B/C/E) horizontal entre el header y la primera card (IA BOX).
-2) Una sección al final del portal para:
-   - cargar /api/deal-context por deal_id
-   - mostrar links de Deal/Contacto
-   - armar un JSON desde los campos del formulario
-   - copiar al portapapeles (para pegar en Medinet vía Tampermonkey)
+Contenido:
+- public/index.html
+- public/deal_context_stage1.js
+- public/deal_context_stage1.css
 
-Archivos incluidos
-- public/portal_nav_actions.css
-- public/portal_nav_actions.js
+Uso:
+1) Reemplaza la carpeta public/ del repo con estos archivos homólogos.
+2) Commit + push.
+3) Redeploy en Render.
 
-Cómo instalar
-1) Copia ambos archivos a tu carpeta:
-   public/
+Incluye:
+- CTA post-contacto para ir a Crear DEAL/TRATO
+- encabezado dinámico con CONTACT_ID
+- Colaborador1 estricto con lista cerrada y búsqueda
+- includes ya insertados en index.html
 
-2) Edita public/index.html y agrega:
-
-  (A) en el <head> (después de style.css está bien):
-      <link rel="stylesheet" href="/portal_nav_actions.css" />
-
-  (B) antes de </body> (idealmente después de /app.js):
-      <script src="/portal_nav_actions.js"></script>
-
-Ejemplo al final del body:
-    <script src="/app.js"></script>
-    <script src="/portal_nav_actions.js"></script>
-  </body>
-
-Notas
-- Los botones NO ejecutan acciones automáticamente: solo navegan y hacen foco.
-- La sección Tampermonkey arma el JSON principalmente desde el formulario (IA BOX / Crear Contacto).
-  El deal_id es opcional, sirve para traer links desde Sell.
+No toca:
+- parseo BOX IA
+- validación de estatura
+- payload sensible de /api/create-deal

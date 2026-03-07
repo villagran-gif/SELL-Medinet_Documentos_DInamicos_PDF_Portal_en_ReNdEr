@@ -200,7 +200,6 @@
           sortField: { field: "text", direction: "asc" },
         });
       } catch (_err) {
-        // Fallback silencioso al <select> nativo
       }
     }
 
