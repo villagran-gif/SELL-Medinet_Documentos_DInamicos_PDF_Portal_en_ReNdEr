@@ -1217,32 +1217,6 @@ function normalizeUpper(v) {
   return String(v ?? '').trim().toUpperCase();
 }
 
-function normalizePrevisionCanon(v) {
-  const raw = String(v ?? '').trim();
-  const key = raw
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toUpperCase()
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  const map = {
-    'ISAPRE NUEVA MASVIDA': 'NUEVA MAS VIDA',
-    'ISAPRE NUEVA MAS VIDA': 'NUEVA MAS VIDA',
-    'NUEVA MASVIDA': 'NUEVA MAS VIDA',
-    'MAS VIDA': 'NUEVA MAS VIDA',
-    'MASVIDA': 'NUEVA MAS VIDA',
-    'ISAPRE CRUZBLANCA': 'CRUZ BLANCA',
-    'ISAPRE CRUZ BLANCA': 'CRUZ BLANCA',
-    'CRUZBLANCA': 'CRUZ BLANCA',
-    'PAD FONASA': 'PAD Fonasa PAD',
-    'PAD FONASA PAD': 'PAD Fonasa PAD',
-    'FONASA': 'FONASA'
-  };
-
-  return map[key] || key;
-}
-
 function normalizeModalidad(v) {
   const s = String(v ?? '').trim();
   const key = s.toLowerCase();
@@ -1280,36 +1254,35 @@ function normalizeModalidad(v) {
 }
 
 function setSmartValue(el, rawValue, opts = {}) {
-  if (!el || rawValue == null) return;
+  if (!el) return;
+  if (rawValue == null) return;
 
   let v = String(rawValue).trim();
   if (!v) return;
 
   if (typeof opts.normalize === "function") v = opts.normalize(v);
 
+  // If TomSelect is attached, use it so UI updates correctly
   if (el.tomselect) {
     const ts = el.tomselect;
+
+    // If value doesn't exist, try case-insensitive match
     const keys = Object.keys(ts.options || {});
     const foundKey = keys.find(k => k.toLowerCase() === v.toLowerCase());
+    if (foundKey) v = foundKey;
 
-    if (foundKey) {
-      ts.setValue(foundKey, true);
-      ts.trigger("change");
-      return;
-    }
-
-    if (opts.allowCreate) {
+    // If still not found and allowCreate, add option
+    if (!ts.options?.[v] && opts.allowCreate) {
       ts.addOption({ value: v, text: v });
-      ts.setValue(v, true);
-      ts.trigger("change");
-      return;
     }
 
-    ts.clear(true);
+    // Finally set
+    ts.setValue(v, true);
     ts.trigger("change");
     return;
   }
 
+  // Fallback: plain inputs/selects
   el.value = v;
 }
 
@@ -1333,7 +1306,7 @@ function fillFields(obj) {
   if (obj.email) fields.email.value = obj.email;
 
   // Dropdowns (TomSelect combobox): use smart setter so UI updates + normalize
-  if (obj.aseguradora) setSmartValue(fields.aseguradora, obj.aseguradora, { normalize: normalizePrevisionCanon, allowCreate: false });
+  if (obj.aseguradora) setSmartValue(fields.aseguradora, obj.aseguradora, { normalize: normalizeUpper, allowCreate: true });
   if (obj.modalidad) setSmartValue(fields.modalidad, obj.modalidad, { normalize: normalizeModalidad, allowCreate: true });
   if (obj.comuna) setSmartValue(fields.comuna, obj.comuna, { normalize: normalizeUpper, allowCreate: false });
 
@@ -1584,7 +1557,7 @@ function initComboboxes() {
   fillSelect(elC, COMUNAS_OPTIONS);
 
   if (window.TomSelect) {
-    if (elA) new TomSelect(elA, { create: false, persist: true, maxOptions: 500, placeholder: "Selecciona…" });
+    if (elA) new TomSelect(elA, { create: true, persist: true, maxOptions: 500, placeholder: "Selecciona…" });
     if (elM) new TomSelect(elM, { create: true, persist: true, maxOptions: 500, placeholder: "Selecciona…" });
     if (elC) new TomSelect(elC, { create: false, persist: true, maxOptions: 5000, placeholder: "Selecciona…" });
   }

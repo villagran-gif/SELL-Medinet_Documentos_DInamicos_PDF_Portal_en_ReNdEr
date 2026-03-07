@@ -106,11 +106,6 @@ function normalizeAseguradoraAlias(v) {
     'ISAPRE CRUZBLANCA': 'CRUZ BLANCA',
     'ISAPRE CRUZ BLANCA': 'CRUZ BLANCA',
     'CRUZBLANCA': 'CRUZ BLANCA',
-    'ISAPRE NUEVA MASVIDA': 'NUEVA MAS VIDA',
-    'ISAPRE NUEVA MAS VIDA': 'NUEVA MAS VIDA',
-    'NUEVA MASVIDA': 'NUEVA MAS VIDA',
-    'MAS VIDA': 'NUEVA MAS VIDA',
-    'MASVIDA': 'NUEVA MAS VIDA',
   };
   return map[key] || cleanValue(v);
 }
