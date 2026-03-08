@@ -1,10 +1,10 @@
 *** public/index.html
 --- public/index.html
 @@
--    <link rel="stylesheet" href="/portal_nav_actions.css" />
-+    <link rel="stylesheet" href="/portal_nav_actions.css" />
+-    <link rel="stylesheet" href="/deal_context_stage1.css" />
 +    <link rel="stylesheet" href="/deal_context_stage1.css" />
++    <link rel="stylesheet" href="/deal_docs_cta_stage1.css" />
 @@
--  </body>
+-    <script src="/deal_context_stage1.js"></script>
 +    <script src="/deal_context_stage1.js"></script>
-+  </body>
++    <script src="/deal_docs_cta_stage1.js"></script>
