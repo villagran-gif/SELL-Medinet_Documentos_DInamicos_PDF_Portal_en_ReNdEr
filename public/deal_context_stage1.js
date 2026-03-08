@@ -103,7 +103,7 @@
     }
 
     if (!contactId) {
-      const existingCta = container.querySelector("#postContactDealCta");
+      const existingCta = container.querySelector("#postContactDealCta, [data-stage1-cta='1']");
       if (existingCta) {
         const m = normalizeText(existingCta.textContent || "").match(/CONTACT[_ ]ID\s*(\d+)/i);
         if (m) contactId = Number(m[1] || 0);
@@ -196,12 +196,16 @@
       `CONTACT_ID ${ctx.contactId}`,
     ];
 
-    header.hidden = false;
-    header.innerHTML = `
+    const nextHtml = `
       <span class="deal-stage1-icon" aria-hidden="true">🪛</span>
       <span class="deal-stage1-copy"><b>Creando DEAL/TRATO de ${escapeHtml(pieces.join(" · "))}</b></span>
       <span class="deal-stage1-icon" aria-hidden="true">🔧</span>
     `;
+
+    header.hidden = false;
+    if (header.innerHTML.trim() !== nextHtml.trim()) {
+      header.innerHTML = nextHtml;
+    }
   }
 
   function scrollToDealForm() {
@@ -247,7 +251,7 @@
   function isContainerMeaningful(container) {
     if (!container) return false;
     const cloned = container.cloneNode(true);
-    cloned.querySelectorAll("#postContactDealCtaWrap").forEach((el) => el.remove());
+    cloned.querySelectorAll("#postContactDealCtaWrap, [data-stage1-cta-wrap='1']").forEach((el) => el.remove());
     return !!normalizeText(cloned.textContent || "");
   }
 
@@ -263,36 +267,71 @@
     return { host: summary || rutLookup, context: summaryCtx.hasContactId ? summaryCtx : lookupCtx };
   }
 
+  function getAllCtaWraps() {
+    return Array.from(document.querySelectorAll("[data-stage1-cta-wrap='1'], #postContactDealCtaWrap"));
+  }
+
+  function buildCtaLabel(ctx) {
+    return `CREAR TRATO para CONTACTO ${ctx.name || "CONTACTO SIN NOMBRE"} · CONTACT_ID ${String(ctx.contactId)}`;
+  }
+
+  function ensureCtaButton(wrap, ctx) {
+    let btn = wrap.querySelector("[data-stage1-cta='1'], #postContactDealCta");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = "postContactDealCta";
+      btn.className = "qa-btn qa-btn-post-contact";
+      btn.setAttribute("data-stage1-cta", "1");
+      btn.innerHTML = '<span class="qa-k">B</span><span class="qa-ico">💼</span><span class="qa-copy"></span>';
+      btn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        activatePostContactDealCta();
+      });
+      wrap.replaceChildren(btn);
+    }
+
+    const copyEl = btn.querySelector(".qa-copy") || btn;
+    const nextText = buildCtaLabel(ctx);
+    if (normalizeText(copyEl.textContent || "") !== normalizeText(nextText)) {
+      copyEl.textContent = nextText;
+    }
+    btn.setAttribute("aria-label", nextText);
+    btn.dataset.contactId = String(ctx.contactId);
+    return btn;
+  }
+
   function ensureSummaryCta() {
     const placement = findBestCtaHost();
     const host = placement.host;
     const ctx = getContactContext();
-    const summaryWraps = document.querySelectorAll("#postContactDealCtaWrap");
+    const existingWraps = getAllCtaWraps();
 
     if (!host) return;
 
     if (!ctx.hasContactId || ctx.hasDeal || !isContainerMeaningful(host)) {
-      summaryWraps.forEach((el) => el.remove());
+      existingWraps.forEach((el) => el.remove());
       return;
     }
 
-    let wrap = host.querySelector("#postContactDealCtaWrap");
+    let wrap = host.querySelector("[data-stage1-cta-wrap='1'], #postContactDealCtaWrap");
     if (!wrap) {
-      summaryWraps.forEach((el) => el.remove());
+      existingWraps.forEach((el) => el.remove());
       wrap = document.createElement("div");
       wrap.id = "postContactDealCtaWrap";
       wrap.className = "post-contact-deal-cta";
+      wrap.setAttribute("data-stage1-cta-wrap", "1");
       host.appendChild(wrap);
+    } else {
+      existingWraps.forEach((el) => {
+        if (el !== wrap) el.remove();
+      });
+      if (wrap.parentElement !== host) {
+        host.appendChild(wrap);
+      }
     }
 
-    const safeName = escapeHtml(ctx.name || "CONTACTO SIN NOMBRE");
-    wrap.innerHTML = `
-      <button type="button" id="postContactDealCta" class="qa-btn qa-btn-post-contact">
-        <span class="qa-k">B</span>
-        <span class="qa-ico">💼</span>
-        CREAR TRATO para CONTACTO ${safeName} · CONTACT_ID ${escapeHtml(String(ctx.contactId))}
-      </button>
-    `;
+    ensureCtaButton(wrap, ctx);
   }
 
   function buildPreviewKvRow(label, value) {
@@ -314,9 +353,9 @@
       rut_o_id: readValue("c_rut"),
       nombres: readValue("c_nombres"),
       apellidos: readValue("c_apellidos"),
-      fecha_nacimiento: readValue("c_fecha_nacimiento"),
-      telefono1: readValue("c_telefono1"),
-      telefono2: readValue("c_telefono2"),
+      fecha_nacimiento: readValue("c_fecha") || readValue("c_fecha_nacimiento"),
+      telefono1: readValue("c_tel1") || readValue("c_telefono1"),
+      telefono2: readValue("c_tel2") || readValue("c_telefono2"),
       email: readValue("c_email"),
       aseguradora: readValue("c_aseguradora"),
       modalidad: readValue("c_modalidad"),
@@ -487,7 +526,7 @@
   }
 
   function bindContactFieldRefresh() {
-    ["c_nombres", "c_apellidos", "c_rut", "c_fecha_nacimiento", "c_telefono1", "c_telefono2", "c_email", "c_aseguradora", "c_modalidad", "c_direccion", "c_comuna"].forEach((id) => {
+    ["c_nombres", "c_apellidos", "c_rut", "c_fecha_nacimiento", "c_telefono1", "c_telefono2", "c_email", "c_aseguradora", "c_modalidad", "c_direccion", "c_comuna", "c_fecha", "c_tel1", "c_tel2"].forEach((id) => {
       const el = $(id);
       if (!el) return;
       el.addEventListener("input", refreshUi);
@@ -498,7 +537,7 @@
   function bindDelegatedClicks() {
     if (state.boundCtaDelegate) return;
     document.addEventListener("click", (ev) => {
-      const btn = ev.target && ev.target.closest ? ev.target.closest("#postContactDealCta") : null;
+      const btn = ev.target && ev.target.closest ? ev.target.closest("#postContactDealCta, [data-stage1-cta='1']") : null;
       if (!btn) return;
       ev.preventDefault();
       activatePostContactDealCta();
