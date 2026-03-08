@@ -21,6 +21,8 @@
     dealSummaryObserverInstalled: false,
     boundDocsCtaDelegate: false,
     dealDocsLastSignature: "",
+    docsInlineObserverInstalled: false,
+    boundDocsPrimaryButton: false,
   };
 
   function $(id) {
@@ -39,6 +41,29 @@
   function readValue(id) {
     const el = $(id);
     return el ? String(el.value || "").trim() : "";
+  }
+
+  function normalizeText(s) {
+    return String(s || "").replace(/\s+/g, " ").trim();
+  }
+
+  function firstFilled(...values) {
+    for (const value of values) {
+      if (value === 0) return "0";
+      const text = String(value ?? "").trim();
+      if (text) return text;
+    }
+    return "";
+  }
+
+  function getObjectValue(obj, ...keys) {
+    if (!obj || typeof obj !== "object") return "";
+    for (const key of keys) {
+      if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
+      const text = String(obj[key] ?? "").trim();
+      if (text) return text;
+    }
+    return "";
   }
 
   function parseContactIdFromHref(href) {
@@ -68,10 +93,6 @@
       if (m) return Number(m[1] || 0);
     }
     return 0;
-  }
-
-  function normalizeText(s) {
-    return String(s || "").replace(/\s+/g, " ").trim();
   }
 
   function extractNameFromText(text) {
@@ -387,6 +408,109 @@
     `;
   }
 
+  function parseJsonFromPre(id) {
+    const el = $(id);
+    if (!el) return null;
+    const raw = String(el.textContent || "").trim();
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  function buildDealPreviewModel() {
+    const json = parseJsonFromPre("d_out");
+    const vp = json?.vista_previa;
+    if (!vp || typeof vp !== "object") return null;
+
+    const cf = (vp.custom_fields && typeof vp.custom_fields === "object") ? vp.custom_fields : {};
+
+    const model = {
+      deal_name: firstFilled(vp.deal_name, vp.name, json?.deal?.name),
+      contact_id: firstFilled(vp.contact_id, json?.contact_id, window.__lastContactId),
+      rut_normalizado: firstFilled(vp.rut_normalizado, getObjectValue(cf, "RUT_normalizado")),
+      rut_humano: firstFilled(vp.rut_humano, getObjectValue(cf, "RUT o ID", "RUT_o_ID"), readValue("c_rut")),
+      nombres: firstFilled(readValue("c_nombres"), getObjectValue(cf, "Nombres")),
+      apellidos: firstFilled(readValue("c_apellidos"), getObjectValue(cf, "Apellidos")),
+      fecha_nacimiento: firstFilled(getObjectValue(cf, "Fecha Nacimiento", "FechaNacimiento"), readValue("c_fecha"), vp.fecha_nacimiento),
+      telefono1: firstFilled(getObjectValue(cf, "Telefono", "Teléfono", "Telefono 1", "Teléfono 1"), readValue("c_tel1"), readValue("c_telefono1")),
+      telefono2: firstFilled(getObjectValue(cf, "Telefono 2", "Teléfono 2"), readValue("c_tel2"), readValue("c_telefono2")),
+      email: firstFilled(getObjectValue(cf, "Correo electrónico", "Correo electronico", "Correo", "Email"), readValue("c_email")),
+      aseguradora: firstFilled(vp.aseguradora, getObjectValue(cf, "Previsión", "Prevision", "Aseguradora"), readValue("c_aseguradora")),
+      modalidad: firstFilled(vp.modalidad, getObjectValue(cf, "Modalidad", "Tramo/Modalidad", "Tramo Modalidad"), readValue("c_modalidad")),
+      comuna: firstFilled(vp.comuna, getObjectValue(cf, "Ciudad", "Comuna"), readValue("c_comuna")),
+      peso: firstFilled(getObjectValue(cf, "Peso"), readValue("dealPeso")),
+      estatura: firstFilled(getObjectValue(cf, "Estatura", "Estatura (cm)"), readValue("dealEstatura")),
+      imc: firstFilled(getObjectValue(cf, "IMC")),
+      edad: firstFilled(getObjectValue(cf, "EDAD", "Edad")),
+      fecha_ingreso: firstFilled(getObjectValue(cf, "Fecha Ingresa Formulario")),
+      whatsapp: firstFilled(getObjectValue(cf, "WhatsApp Contactar LINK", "WhatsApp")),
+    };
+
+    return { json, vp, cf, model };
+  }
+
+  function buildDealPreviewHtml(preview) {
+    const { model } = preview;
+    return `
+      <div class="kv deal-preview-kv" data-stage1-deal-preview="1">
+        ${buildPreviewKvRow("Nombre deal", model.deal_name)}
+        ${buildPreviewKvRow("Contact ID", model.contact_id)}
+        ${buildPreviewKvRow("RUT normalizado", model.rut_normalizado)}
+        ${buildPreviewKvRow("RUT (humano)", model.rut_humano)}
+        ${buildPreviewKvRow("Nombres", model.nombres)}
+        ${buildPreviewKvRow("Apellidos", model.apellidos)}
+        ${buildPreviewKvRow("Fecha Nacimiento", model.fecha_nacimiento)}
+        ${buildPreviewKvRow("Teléfono 1", model.telefono1)}
+        ${buildPreviewKvRow("Teléfono 2", model.telefono2)}
+        ${buildPreviewKvRow("Correo", model.email)}
+        ${buildPreviewKvRow("Aseguradora", model.aseguradora)}
+        ${buildPreviewKvRow("Modalidad", model.modalidad)}
+        ${buildPreviewKvRow("Comuna", model.comuna)}
+        ${buildPreviewKvRow("Peso", model.peso)}
+        ${buildPreviewKvRow("Estatura", model.estatura)}
+        ${buildPreviewKvRow("IMC", model.imc)}
+        ${buildPreviewKvRow("Edad", model.edad)}
+        ${buildPreviewKvRow("Fecha ingreso formulario", model.fecha_ingreso)}
+        ${buildPreviewKvRow("WhatsApp", model.whatsapp)}
+      </div>
+    `;
+  }
+
+  function ensureDealPreviewCard() {
+    const dStatus = $("d_status");
+    const dSummary = $("d_summary");
+    if (!dStatus || !dSummary) return;
+
+    const preview = buildDealPreviewModel();
+    if (!preview) return;
+
+    const statusText = normalizeText(dStatus.textContent || "");
+    const messageText = normalizeText(preview.json?.message || "");
+    const summaryText = normalizeText(dSummary.textContent || "");
+    const hasCreatedDeal = /Deal creado:/i.test(summaryText);
+    const shouldShow = /Vista\s+previa/i.test(statusText) || /Vista\s+previa/i.test(messageText) || /dry_run/i.test(statusText);
+
+    if (!shouldShow || hasCreatedDeal) return;
+
+    const nextHtml = buildDealPreviewHtml(preview).trim();
+    const currentPreview = dSummary.querySelector("[data-stage1-deal-preview='1']");
+    const hasOnlyPlaceholder = !summaryText || /^Sin datos\.?$/i.test(summaryText);
+
+    if (currentPreview) {
+      if (dSummary.innerHTML.trim() !== nextHtml) {
+        dSummary.innerHTML = nextHtml;
+      }
+      return;
+    }
+
+    if (hasOnlyPlaceholder || !dSummary.querySelector(".kv")) {
+      dSummary.innerHTML = nextHtml;
+    }
+  }
+
   function replaceColab1Input() {
     const current = $("dealColab1");
     if (!current) return null;
@@ -471,6 +595,7 @@
   function refreshUi() {
     ensureFallbackPreviewCard();
     ensureSummaryCta();
+    ensureDealPreviewCard();
     if (state.headerPinned) renderDealHeader(true);
   }
 
@@ -546,19 +671,6 @@
       activatePostContactDealCta();
     }, true);
     state.boundCtaDelegate = true;
-  }
-
-
-  function parseJsonFromPre(id) {
-    const el = $(id);
-    if (!el) return null;
-    const raw = String(el.textContent || "").trim();
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw);
-    } catch (_err) {
-      return null;
-    }
   }
 
   function extractRutForDocs() {
@@ -712,13 +824,128 @@
     }, 280);
   }
 
+  function getDocsStatusKind(source) {
+    if (!source) return "info";
+    if (source.classList.contains("error")) return "error";
+    if (source.classList.contains("ok")) return "ok";
+    if (source.classList.contains("running")) return "running";
+    return "info";
+  }
+
+  function formatDocsInlineMessage(message, kind) {
+    const text = normalizeText(message || "");
+    if (!text) return "";
+    if (kind === "running") {
+      if (/Generando documentos/i.test(text)) return "🚨 Generando documentos... 🚨";
+      if (/Preparando vista previa/i.test(text)) return "🚨 Preparando vista previa... 🚨";
+      return `🚨 ${text} 🚨`;
+    }
+    if (kind === "ok") {
+      if (/Documentos generados/i.test(text)) return "✅ Documentos generados ✅";
+      if (/Vista Previa OK/i.test(text)) return '✅ Vista Previa OK… confirma "CREAR DOCUMENTOS" ✅';
+    }
+    if (kind === "error") {
+      return `⚠️ ${text}`;
+    }
+    return text;
+  }
+
+  function ensureDocsInlineStatus() {
+    const btn = $("btnCreateDocs");
+    if (!btn) return null;
+
+    let statusEl = $("docs_status_inline");
+    if (statusEl) return statusEl;
+
+    const btnRow = btn.closest(".row");
+    const ownerRow = $("docsOwnerId") && $("docsOwnerId").closest ? $("docsOwnerId").closest(".row") : null;
+    const anchor = ownerRow || btnRow;
+    if (!anchor) return null;
+
+    statusEl = document.createElement("section");
+    statusEl.id = "docs_status_inline";
+    statusEl.className = "status docs-status-inline";
+    statusEl.hidden = true;
+    anchor.insertAdjacentElement("afterend", statusEl);
+    return statusEl;
+  }
+
+  function setDocsInlineStatus(message, kind) {
+    const statusEl = ensureDocsInlineStatus();
+    if (!statusEl) return;
+    const finalMessage = formatDocsInlineMessage(message, kind);
+
+    if (!normalizeText(finalMessage)) {
+      statusEl.hidden = true;
+      statusEl.textContent = "";
+      statusEl.className = "status docs-status-inline";
+      return;
+    }
+
+    statusEl.hidden = false;
+    if (typeof window.setStatus === "function") {
+      window.setStatus(statusEl, finalMessage, kind || "info");
+    } else {
+      statusEl.className = `status docs-status-inline ${kind || "info"}`.trim();
+      statusEl.textContent = finalMessage;
+    }
+  }
+
+  function syncDocsInlineStatus() {
+    const source = $("docs_status");
+    if (!source) return;
+    const text = normalizeText(source.textContent || "");
+    if (!text) {
+      setDocsInlineStatus("", "info");
+      return;
+    }
+    const kind = getDocsStatusKind(source);
+    setDocsInlineStatus(text, kind);
+  }
+
+  function installDocsInlineObserver() {
+    if (state.docsInlineObserverInstalled) return;
+    const source = $("docs_status");
+    if (!source) return;
+
+    const observer = new MutationObserver(() => {
+      window.requestAnimationFrame(syncDocsInlineStatus);
+    });
+
+    observer.observe(source, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    state.docsInlineObserverInstalled = true;
+  }
+
+  function bindDocsPrimaryButtonMirror() {
+    if (state.boundDocsPrimaryButton) return;
+    const btn = $("btnCreateDocs");
+    if (!btn) return;
+
+    btn.addEventListener("click", () => {
+      const dry = !!$("docsDryRun")?.checked;
+      setDocsInlineStatus(dry ? "Preparando vista previa..." : "Generando documentos...", "running");
+    }, true);
+
+    state.boundDocsPrimaryButton = true;
+  }
+
   function installDealSummaryObserver() {
     if (state.dealSummaryObserverInstalled) return;
     const targets = [$("d_summary"), $("d_out"), $("d_status")].filter(Boolean);
     if (!targets.length) return;
 
     const observer = new MutationObserver(() => {
-      window.requestAnimationFrame(ensureDealDocsCta);
+      window.requestAnimationFrame(() => {
+        ensureDealPreviewCard();
+        ensureDealDocsCta();
+      });
     });
 
     targets.forEach((target) => {
@@ -743,19 +970,23 @@
     state.boundDocsCtaDelegate = true;
   }
 
-
   function boot() {
     replaceColab1Input();
     ensureDealHeader();
+    ensureDocsInlineStatus();
     refreshUi();
+    ensureDealPreviewCard();
     ensureDealDocsCta();
+    syncDocsInlineStatus();
     bindDealButtons();
     bindDelegatedClicks();
     bindDocsCtaDelegate();
+    bindDocsPrimaryButtonMirror();
     installSummaryObserver();
     installRutLookupObserver();
     installStatusObserver();
     installDealSummaryObserver();
+    installDocsInlineObserver();
     bindContactFieldRefresh();
 
     if (state.headerPinned) {

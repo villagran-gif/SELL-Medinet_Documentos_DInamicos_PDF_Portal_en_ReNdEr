@@ -24,82 +24,14 @@
   line-height: 1.35;
 }
 
-.post-contact-deal-cta {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(88, 166, 255, 0.18);
-}
-
-.qa-btn-post-contact {
-  width: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 16px 18px;
-  border-radius: 14px;
-  border: 1px solid rgba(34, 197, 94, 0.60);
-  background: linear-gradient(180deg, rgba(34, 197, 94, 0.34), rgba(22, 163, 74, 0.18));
-  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.12), 0 10px 24px rgba(0, 0, 0, 0.24);
-  color: #dcfce7;
-  cursor: pointer;
-  font-weight: 900;
-  letter-spacing: 0.15px;
-  text-align: center;
-  transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease;
-}
-
-.qa-btn-post-contact:hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.18), 0 14px 28px rgba(0, 0, 0, 0.30);
-}
-
-.qa-btn-post-contact:active {
-  transform: translateY(0);
-}
-
-.qa-btn-post-contact .qa-k {
-  border: 1px solid rgba(220, 252, 231, 0.45);
-  background: rgba(220, 252, 231, 0.12);
-  color: #dcfce7;
-}
-
-.qa-btn-post-contact .qa-ico {
-  font-size: 18px;
-}
-
-.deal-colab1-help {
-  margin-top: 6px;
-}
-
-.deal-colab1-invalid {
-  outline: 1px solid rgba(255, 90, 122, 0.6);
-  border-radius: 10px;
-  padding: 8px;
-  background: rgba(127, 29, 29, 0.08);
-}
-
-.deal-stage1-pulse {
-  animation: dealStage1Pulse 1.2s ease-out;
-}
-
-@keyframes dealStage1Pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(88, 166, 255, 0.45);
-  }
-  100% {
-    box-shadow: 0 0 0 14px rgba(88, 166, 255, 0);
-  }
-}
-
-
+.post-contact-deal-cta,
 .post-deal-docs-cta {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid rgba(88, 166, 255, 0.18);
 }
 
+.qa-btn-post-contact,
 .qa-btn-post-deal-docs {
   width: 100%;
   display: inline-flex;
@@ -119,45 +51,77 @@
   transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease;
 }
 
+.qa-btn-post-contact:hover,
 .qa-btn-post-deal-docs:hover {
   filter: brightness(1.08);
   transform: translateY(-1px);
   box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.18), 0 14px 28px rgba(0, 0, 0, 0.30);
 }
 
+.qa-btn-post-contact:active,
 .qa-btn-post-deal-docs:active {
   transform: translateY(0);
 }
 
+.qa-btn-post-contact .qa-k,
 .qa-btn-post-deal-docs .qa-k {
   border: 1px solid rgba(220, 252, 231, 0.45);
   background: rgba(220, 252, 231, 0.12);
   color: #dcfce7;
+  border-radius: 10px;
+  min-width: 28px;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
 }
 
+.qa-btn-post-contact .qa-ico,
 .qa-btn-post-deal-docs .qa-ico {
   font-size: 18px;
 }
 
-.docs-create-ready,
-#btnCreateDocs.docs-create-ready,
-#btnCreateDocs.docs-create-ready:disabled {
-  border-color: rgba(34, 197, 94, 0.75) !important;
-  background: linear-gradient(180deg, rgba(34, 197, 94, 0.34), rgba(22, 163, 74, 0.18)) !important;
-  color: #dcfce7 !important;
-  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.12), 0 10px 24px rgba(0, 0, 0, 0.24) !important;
-  opacity: 1 !important;
+.qa-btn-post-contact .qa-copy,
+.qa-btn-post-deal-docs .qa-copy {
+  white-space: normal;
 }
 
+.deal-colab1-help {
+  margin-top: 6px;
+}
+
+.deal-colab1-invalid {
+  outline: 1px solid rgba(255, 90, 122, 0.6);
+  border-radius: 10px;
+  padding: 8px;
+  background: rgba(127, 29, 29, 0.08);
+}
+
+.deal-stage1-pulse,
 .deal-docs-cta-pulse {
-  animation: dealDocsCtaPulse 1.2s ease-out;
+  animation: dealStage1Pulse 1.2s ease-out;
 }
 
-@keyframes dealDocsCtaPulse {
+@keyframes dealStage1Pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
+    box-shadow: 0 0 0 0 rgba(88, 166, 255, 0.45);
   }
   100% {
-    box-shadow: 0 0 0 14px rgba(34, 197, 94, 0);
+    box-shadow: 0 0 0 14px rgba(88, 166, 255, 0);
   }
+}
+
+.docs-create-ready {
+  border-color: rgba(34, 197, 94, 0.65) !important;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.14), 0 10px 24px rgba(0, 0, 0, 0.24) !important;
+}
+
+.docs-status-inline {
+  margin-top: 10px;
+  margin-bottom: 6px;
+}
+
+.deal-preview-kv {
+  margin-top: 10px;
 }
