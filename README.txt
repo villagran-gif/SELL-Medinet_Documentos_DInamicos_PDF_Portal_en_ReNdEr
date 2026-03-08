@@ -1,9 +1,5 @@
-Hotfix CTA estable Stage 1
-
-Reemplazar solo este archivo:
+Reemplaza SOLO estos 2 archivos ya cargados por el portal:
 - public/deal_context_stage1.js
+- public/deal_context_stage1.css
 
-Objetivo:
-- estabiliza el boton post-contacto
-- evita re-render intermitente
-- mantiene todo lo ya avanzado
+Este hotfix integra el CTA post-deal dentro del overlay Stage 1 que ya funciona, sin agregar nuevos includes en index.html.

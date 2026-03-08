@@ -18,6 +18,9 @@
     statusObserverInstalled: false,
     boundDealButtons: false,
     boundCtaDelegate: false,
+    dealSummaryObserverInstalled: false,
+    boundDocsCtaDelegate: false,
+    dealDocsLastSignature: "",
   };
 
   function $(id) {
@@ -545,15 +548,214 @@
     state.boundCtaDelegate = true;
   }
 
+
+  function parseJsonFromPre(id) {
+    const el = $(id);
+    if (!el) return null;
+    const raw = String(el.textContent || "").trim();
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  function extractRutForDocs() {
+    const direct = readValue("c_rut") || readValue("rut");
+    if (direct) return direct;
+
+    const dJson = parseJsonFromPre("d_out");
+    const cJson = parseJsonFromPre("c_out");
+    const candidates = [
+      dJson?.deal?.rut,
+      dJson?.deal?.rut_humano,
+      dJson?.deal?.rut_normalizado,
+      dJson?.rut,
+      dJson?.rut_humano,
+      dJson?.rut_normalizado,
+      cJson?.contact?.rut,
+      cJson?.contact?.rut_humano,
+      cJson?.contact?.rut_normalizado,
+      cJson?.rut,
+      cJson?.rut_humano,
+      cJson?.rut_normalizado,
+    ].filter(Boolean);
+
+    if (candidates.length) return String(candidates[0]).trim();
+
+    const text = [$("d_summary")?.textContent || "", $("c_summary")?.textContent || "", $("c_rut_lookup")?.textContent || ""].join("\n");
+    const match = text.match(/\b\d{1,2}\.\d{3}\.\d{3}-[0-9kK]\b|\b\d{7,8}-[0-9kK]\b/);
+    return match ? match[0] : "";
+  }
+
+  function extractDealDocsContext() {
+    const summary = $("d_summary");
+    if (!summary) return null;
+    const summaryText = normalizeText(summary.textContent || "");
+    if (!/Deal creado:/i.test(summaryText)) return null;
+
+    const json = parseJsonFromPre("d_out");
+    const deal = json?.deal || null;
+    const links = Array.from(summary.querySelectorAll('a[href]'));
+    const desktopLink = links[0] || null;
+    const dealName = normalizeText(deal?.name || desktopLink?.textContent || "DEAL SIN NOMBRE");
+    let dealId = Number(deal?.id || 0);
+    if (!(Number.isFinite(dealId) && dealId > 0)) {
+      for (const a of links) {
+        const parsed = parseDealIdFromHref(a.getAttribute('href') || '');
+        if (parsed > 0) {
+          dealId = parsed;
+          break;
+        }
+      }
+    }
+    const rut = extractRutForDocs();
+
+    return {
+      dealName,
+      dealId: Number.isFinite(dealId) && dealId > 0 ? dealId : 0,
+      rut,
+      hasDeal: true,
+    };
+  }
+
+  function getDocsSearchCard() {
+    const rutInput = $("rut");
+    return rutInput && rutInput.closest ? rutInput.closest("section.card") : null;
+  }
+
+  function scrollToDocsSearch() {
+    const rutInput = $("rut");
+    if (!rutInput) return;
+    const card = getDocsSearchCard() || rutInput;
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+    card.classList.add("deal-docs-cta-pulse");
+    window.setTimeout(() => card.classList.remove("deal-docs-cta-pulse"), 1200);
+    window.setTimeout(() => {
+      try { rutInput.focus({ preventScroll: true }); } catch (_err) {}
+      try { rutInput.select(); } catch (_err) {}
+    }, 220);
+  }
+
+  function markDocsButtonReady() {
+    const btn = $("btnCreateDocs");
+    if (btn) btn.classList.add("docs-create-ready");
+  }
+
+  function ensureDealDocsCta() {
+    const summary = $("d_summary");
+    if (!summary) return;
+
+    let wrap = $("postDealDocsCtaWrap");
+    const ctx = extractDealDocsContext();
+    if (!ctx || !ctx.hasDeal) {
+      if (wrap) wrap.remove();
+      state.dealDocsLastSignature = "";
+      return;
+    }
+
+    const signature = `${ctx.dealName}__${ctx.rut}__${ctx.dealId}`;
+    if (!wrap) {
+      wrap = document.createElement("div");
+      wrap.id = "postDealDocsCtaWrap";
+      wrap.className = "post-deal-docs-cta";
+      summary.appendChild(wrap);
+    }
+
+    if (state.dealDocsLastSignature === signature && wrap.dataset.ready === "1") return;
+
+    wrap.dataset.ready = "1";
+    state.dealDocsLastSignature = signature;
+    wrap.innerHTML = `
+      <button type="button" id="postDealDocsCta" class="qa-btn qa-btn-post-deal-docs" data-stage1-docs-cta="1">
+        <span class="qa-k">C</span>
+        <span class="qa-ico">👇🖨️</span>
+        <span class="qa-copy">CREAR DOCUMENTOS para ${escapeHtml(ctx.dealName)} · ${escapeHtml(ctx.rut || "SIN RUT")} · DEAL_ID ${escapeHtml(String(ctx.dealId || ""))}</span>
+        <span class="qa-ico">📑👇</span>
+      </button>
+    `;
+  }
+
+  function submitDocsSearch() {
+    const rutInput = $("rut");
+    const form = rutInput && rutInput.closest ? rutInput.closest("form") : null;
+    if (!form) return;
+    if (typeof form.requestSubmit === "function") {
+      form.requestSubmit();
+      return;
+    }
+    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  }
+
+  function activateDealDocsCta() {
+    const ctx = extractDealDocsContext();
+    const rutInput = $("rut");
+    if (!ctx || !rutInput) return;
+
+    if (ctx.rut) rutInput.value = ctx.rut;
+    markDocsButtonReady();
+    scrollToDocsSearch();
+
+    window.setTimeout(() => {
+      submitDocsSearch();
+      markDocsButtonReady();
+      const owner = $("docsOwnerId");
+      const docsBtn = $("btnCreateDocs");
+      window.setTimeout(() => {
+        if (owner && !String(owner.value || "").trim()) {
+          try { owner.focus({ preventScroll: true }); } catch (_err) {}
+        } else {
+          try { docsBtn?.focus({ preventScroll: true }); } catch (_err) {}
+        }
+      }, 260);
+    }, 280);
+  }
+
+  function installDealSummaryObserver() {
+    if (state.dealSummaryObserverInstalled) return;
+    const targets = [$("d_summary"), $("d_out"), $("d_status")].filter(Boolean);
+    if (!targets.length) return;
+
+    const observer = new MutationObserver(() => {
+      window.requestAnimationFrame(ensureDealDocsCta);
+    });
+
+    targets.forEach((target) => {
+      observer.observe(target, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+    });
+
+    state.dealSummaryObserverInstalled = true;
+  }
+
+  function bindDocsCtaDelegate() {
+    if (state.boundDocsCtaDelegate) return;
+    document.addEventListener("click", (ev) => {
+      const btn = ev.target && ev.target.closest ? ev.target.closest("#postDealDocsCta, [data-stage1-docs-cta='1']") : null;
+      if (!btn) return;
+      ev.preventDefault();
+      activateDealDocsCta();
+    }, true);
+    state.boundDocsCtaDelegate = true;
+  }
+
+
   function boot() {
     replaceColab1Input();
     ensureDealHeader();
     refreshUi();
+    ensureDealDocsCta();
     bindDealButtons();
     bindDelegatedClicks();
+    bindDocsCtaDelegate();
     installSummaryObserver();
     installRutLookupObserver();
     installStatusObserver();
+    installDealSummaryObserver();
     bindContactFieldRefresh();
 
     if (state.headerPinned) {
